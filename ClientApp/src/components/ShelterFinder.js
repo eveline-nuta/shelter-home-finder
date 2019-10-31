@@ -1,4 +1,14 @@
 import React, { Component } from 'react';
+import { Map, Marker, GoogleApiWrapper } from 'google-maps-react';
+import { Layout } from './Layout';
+import { FetchData } from './FetchData';
+import { Route } from 'react-router';
+
+
+const style = {
+    width: '100%',
+    height: '100%'
+}
 
 export class ShelterFinder extends Component {
     static displayName = ShelterFinder.name;
@@ -8,47 +18,67 @@ export class ShelterFinder extends Component {
 
         this.state = {
             currentLatLng: {
-                lat: 0,
-                lng: 0
+                crtLat: 59.9139,
+                crtLong: 10.7522
             },
             shelters: [],
-            closestShelter: ""
+            closestShelter: [],
+            address: "",
+            markers: this.props.markers
         };
+        this.getMyGeoLocation();
         this.findShelter = this.findShelter.bind(this);
         this.populateShelterData();
     }
 
-    getClosestShelterByGeoLocation() {
+    componentDidMount() {
+        this.intervalId = setInterval(this.updateMarker.bind(this), 1000);
+    }
+
+    updateMarker() {
+    }
+
+    getMyGeoLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 position => {
                     console.log("my laptops location:");
+
                     console.log(position.coords.latitude);
                     console.log(position.coords.longitude);
-                    this.findNearestShelter(position.coords.latitude, position.coords.longitude);
+
+                    this.setState({
+                        currentLatLng:
+                        {
+                            crtLat: position.coords.latitude,
+                            crtLong: position.coords.longitude
+                        }
+                    })
+
+                    this.setState({
+                        markers: {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        }
+                    });
                 }
             )
+
         }
     }
-    //this.state.shelters.features[0].geometry.coordinates[0]
-    PythagorasEquirectangular(lat1, lon1, lat2, lon2) {
-        lat1 = this.Deg2Rad(lat1);
-        lat2 = this.Deg2Rad(lat2);
-        lon1 = this.Deg2Rad(lon1);
-        lon2 = this.Deg2Rad(lon2);
-        var R = 6371; // km
-        var x = (lon2 - lon1) * Math.cos((lat1 + lat2) / 2);
-        var y = (lat2 - lat1);
-        var d = Math.sqrt(x * x + y * y) * R;
-        return d;
+
+    getClosestShelterByGeoLocation() {
+        this.findNearestShelter(this.state.currentLatLng.crtLat,
+            this.state.currentLatLng.crtLong);
     }
+
 
     findNearestShelter(latitude, longitude) {
         var minDif = 99999;
         var closest;
 
         for (var index = 0; index < this.state.shelters.features.length; ++index) {
-            var dif = this.CalculateCrow(latitude, longitude, this.state.shelters.features[index].geometry.coordinates[1], this.state.shelters.features[index].geometry.coordinates[0]);
+            var dif = this.CalculateDistance(latitude, longitude, this.state.shelters.features[index].geometry.coordinates[1], this.state.shelters.features[index].geometry.coordinates[0]);
             if (dif < minDif) {
                 closest = index;
                 minDif = dif;
@@ -57,42 +87,35 @@ export class ShelterFinder extends Component {
 
         console.log("closest shelter coords:");
 
-        console.log(" COORD 0: ");
+        console.log(" Longitude: ");
         console.log(this.state.shelters.features[closest].geometry.coordinates[0]);
 
-        console.log(" COORD 1: ");
+        console.log(" Latitude: ");
         console.log(this.state.shelters.features[closest].geometry.coordinates[1]);
 
         console.log(" address: ");
-
         console.log(this.state.shelters.features[closest].properties.adresse);
 
         this.setState({
-            closestShelter: this.state.shelters.features[closest].properties.adresse
+            closestShelter: this.state.shelters.features[closest].geometry.coordinates,
+            address: this.state.shelters.features[closest].properties.adresse
         })
 
+        this.setState({
+            markers: {
+                lat: this.state.shelters.features[closest].geometry.coordinates[1],
+                lng: this.state.shelters.features[closest].geometry.coordinates[0]
+            }
+        });
+
     }
-
-    // Convert Degress to Radians
-    Deg2Rad(deg) {
-        return deg * Math.PI / 180;
-    }
-
-
-
 
     findShelter() {
-
         this.getClosestShelterByGeoLocation();
-        //this.setState({
-
-        //  });
-
     }
 
-
-    //This function takes in latitude and longitude of two location and returns the distance between them as the crow flies (in km)
-    CalculateCrow(lat1, lon1, lat2, lon2) {
+    //This function takes in latitude and longitude of two location and returns the distance between them 
+    CalculateDistance(lat1, lon1, lat2, lon2) {
         var R = 6371; // km
         var dLat = this.ToRad(lat2 - lat1);
         var dLon = this.ToRad(lon2 - lon1);
@@ -114,15 +137,32 @@ export class ShelterFinder extends Component {
 
     render() {
         return (
-            <div>
-                <h1>Your Home Finder</h1>
+            <Layout>
+                <Route path='/fetch-data' component={FetchData} />
+                <div>
+                    <h1>Public Shelter Finder</h1>
+                  
 
-                <p>Click the button below to find your shelter</p>
+                    <p aria-live="polite"> On the map below you can see your current location and after you click the 'find shelter' button, the pinpoint on the map will show you the closest shelter </p>
+                    <p>  <strong> {this.state.address} </strong> </p>
 
-                <button className="btn btn-primary" onClick={this.findShelter}>Find Shelter</button>
+                    <button className="btn btn-primary" onClick={this.findShelter}>Find Shelter</button>
+                    <p></p>
 
-                <p aria-live="polite">The closest shelter to you is: <strong> {this.state.closestShelter} </strong></p>
-            </div>
+                    <Map
+                        google={this.props.google}
+                        style={style}
+                        center={this.state.markers}
+                        zoom={15}
+                        onClick={this.onMapClicked}
+                    >
+                        {true && <Marker position={this.state.markers} />}
+
+                    </Map>
+
+                </div>
+            </Layout>
+
         );
     }
 
@@ -134,3 +174,6 @@ export class ShelterFinder extends Component {
 
 
 }
+
+
+

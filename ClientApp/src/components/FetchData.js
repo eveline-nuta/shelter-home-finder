@@ -19,17 +19,18 @@ export class FetchData extends Component {
           <tr>
             <th>Address</th>
             <th>District</th>
-            <th>Latitude</th>
-            <th>Longitude</th>
+            <th>Municipality</th>
+            <th>Rooms</th>
           </tr>
         </thead>
         <tbody>
           {shelters.features.map(shelter =>
-              <tr key={shelter.geometry.coordinates[1]}>
+              <tr key={shelter.displayName}>
                   <td>{shelter.properties.adresse}</td>
                   <td>{shelter.properties.distriktsnavn}</td>
-                  <td>{shelter.geometry.coordinates[0]}</td>
-                  <td>{shelter.geometry.coordinates[1]}</td>
+                  <td>{shelter.properties.kommune}</td>
+                  <td>{shelter.properties.plasser}</td>
+
                  
             </tr>
           )}
@@ -46,7 +47,7 @@ export class FetchData extends Component {
     return (
       <div>
         <h1 id="tabelLabel" > Homes & Shelters </h1>
-        <p>This component demonstrates fetching data from the server.</p>
+            <p> The table below shows relevant information about the public shelters in Norway. </p>
         {contents}
       </div>
     );
